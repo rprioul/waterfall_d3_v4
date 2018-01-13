@@ -10,4 +10,4 @@ I added an extra function called *insertStackedRemainderBefore(**barName**, **ne
 
 ## Suggestions
 
-If you have any suggestions of possible improvments, please reach out to me on github.
+If you have any suggestions of possible improvements, feel free to reach out to me on github.
