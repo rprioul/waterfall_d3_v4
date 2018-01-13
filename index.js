@@ -36,6 +36,21 @@ const dollarFormatter = (n) => {
 }
 
 const prepData = (data) => {
+  // create stacked remainder
+  const insertStackedRemainderBefore = (barName, newBarName) => {
+    const index = data.findIndex((datum) => {
+      return datum.name === barName;
+    }); // data.findIndex
+
+    return data.splice(index, 0, {
+      name: newBarName,
+      start: 0,
+      end: data[index].start,
+      class: 'positive',
+    }); // data.splice
+  } // insertStackedRemainder
+
+
   // Transform data (i.e., finding cumulative values and total) for easier charting
   let cumulative = 0;
 
@@ -53,6 +68,9 @@ const prepData = (data) => {
     start: 0,
     class: 'total'
   });
+
+  // Add a stacked remainder to display as example
+  insertStackedRemainderBefore('Fixed Costs', 'Total Revenue')
 
   return drawWaterfall(data);
 } // prepData
@@ -78,7 +96,7 @@ const drawWaterfall = (data) => {
       .attr("class", "y axis")
       .call(yAxis);
 
-  var bar = chart.selectAll(".bar")
+  const bar = chart.selectAll(".bar")
       .data(data)
     .enter().append("g")
       .attr("class", (d) => {
