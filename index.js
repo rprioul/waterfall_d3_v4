@@ -14,70 +14,34 @@ const xAxis = d3.axisBottom(x);
 
 const yAxis = d3.axisLeft(y)
     .tickFormat((d) => {
-      return dollarFormatter(d);
+      return d;
     });
 
-const chart = d3.select(".chart")
-    .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom)
-  .append("g")
-    .attr("transform", `translate(${ margin.left },${ margin.top })`);
+const div = d3.select("body").append("div")
+    .attr("class", "tooltip")
+    .style("opacity", 0);
+
+const chart = d3.select('.chart')
+    .attr('width', width + margin.left + margin.right)
+    .attr('height', height + margin.top + margin.bottom)
+  .append('g')
+    .attr('transform', `translate(${ margin.left },${ margin.top })`);
+
+// Based on color scale found on colorbrewer2.org
+const colors = d3.scaleLinear()
+    .range(["#fed976", "#bd0026"])
+    .interpolate(d3.interpolateHcl);
+
+let total = 0;
 
 const type = (d) => {
   d.value = +d.value;
   return d;
-}
-
-const dollarFormatter = (n) => {
-  n = Math.round(n);
-  if (Math.abs(n) > 1000) return `$${ Math.round(n/1000) }K`;
-  if (Math.abs(n) > 1000000) return `$${ Math.round(n/1000000) }M`;
-  else return `$${ n }`;
-}
-
-const prepData = (data) => {
-  // create stacked remainder
-  const insertStackedRemainderBefore = (barName, newBarName) => {
-    const index = data.findIndex((datum) => {
-      return datum.name === barName;
-    }); // data.findIndex
-
-    return data.splice(index, 0, {
-      name: newBarName,
-      start: 0,
-      end: data[index].start,
-      class: 'positive',
-    }); // data.splice
-  } // insertStackedRemainder
-
-
-  // Transform data (i.e., finding cumulative values and total) for easier charting
-  let cumulative = 0;
-
-  data.map((datum) => {
-    datum.start = cumulative;
-    cumulative += datum.value;
-    datum.end = cumulative;
-
-    return datum.class = ( datum.value >= 0 ) ? 'positive' : 'negative';
-  }); // data.map
-
-  data.push({
-    name: 'Total',
-    end: cumulative,
-    start: 0,
-    class: 'total'
-  });
-
-  // Add a stacked remainder to display as example
-  insertStackedRemainderBefore('Fixed Costs', 'Total Revenue')
-
-  return drawWaterfall(data);
-} // prepData
+}; // type
 
 const drawWaterfall = (data) => {
   x.domain(data.map((d) => {
-    return d.name; 
+    return d.stage;
   }));
 
   y.domain([
@@ -87,59 +51,118 @@ const drawWaterfall = (data) => {
     })
   ]);
 
-  chart.append("g")
-      .attr("class", "x axis")
-      .attr("transform", `translate(0,${ height })`)
+  chart.append('g')
+      .attr('class', 'x axis')
+      .attr('transform', `translate(0,${ height })`)
       .call(xAxis);
 
-  chart.append("g")
-      .attr("class", "y axis")
+  chart.append('g')
+      .attr('class', 'y axis')
       .call(yAxis);
 
-  const bar = chart.selectAll(".bar")
+  let bar = chart.selectAll('.bar')
       .data(data)
-    .enter().append("g")
-      .attr("class", (d) => {
-        return `bar ${ d.class }`;
+    .enter().append('g')
+      .attr('class', (d) => {
+        return `bar ${ d.class }`
       })
-      .attr("transform", (d) => {
-        return `translate(${ x(d.name) },0)`;
+      .attr('transform', (d) => {
+        return `translate(${ x(d.stage) },0)`;
+      })
+      .on("mouseover", (d) => {
+        div.transition()
+          .duration(200)
+          .style("opacity", .9);
+        div.html(`${ (100 * Math.abs(d.end - d.start) / total).toPrecision(3) }%`)
+         .style("left", (d3.event.pageX) + "px")
+         .style("top", (d3.event.pageY) + "px");
+      })
+      .on("mouseout", (d) => {
+        div.transition()
+          .duration(500)
+          .style("opacity", 0);
       });
 
-  bar.append("rect")
-      .attr("y", (d) => {
+  bar.append('rect')
+      .attr('y', (d) => {
         return y( Math.max(d.start, d.end) );
       })
-      .attr("height", (d) => {
+      .attr('height', (d) => {
         return Math.abs( y(d.start) - y(d.end) );
       })
-      .attr("width", x.bandwidth());
+      .attr('width', x.bandwidth())
+      .style('fill', (d, i) => {
+        return colors(i / data.length);
+      })
+      .on("mouseover", function() {
+        d3.select(this).style("opacity", 0.7)
+      })
+      .on("mouseout", function() {
+        d3.select(this).style("opacity", 1)
+      });
 
-  bar.append("text")
-      .attr("x", x.bandwidth() / 2)
-      .attr("y", (d) => {
-        return y(d.end) + 5;
+  // Add the value on each bar
+  bar.append('text')
+      .attr('x', x.bandwidth() / 2)
+      .attr('y', (d) => {
+        return d.class === 'negative' ? y(d.start) : y(d.end);
       })
-      .attr("dy", (d) => {
-        return ((d.class=='negative') ? '-' : '') + ".75em"
-      })
+      .attr('dy', '-.5em')
       .text((d) => {
-        return dollarFormatter(d.end - d.start);
-      });
+        return Math.abs(d.end - d.start);
+      })
+      .style('fill', 'black');
 
-  bar.filter((d) => {
-    return d.class != "total" }).append("line")
-      .attr("class", "connector")
-      .attr("x1", x.bandwidth() + 5 )
-      .attr("y1", (d) => {
+  // Add the connecting line between each bar
+  bar.append('line')
+      .attr('class', 'connector')
+      .attr('x1', x.bandwidth() + 5 )
+      .attr('y1', (d) => {
         return y(d.end);
       })
-      .attr("x2", x.bandwidth() / ( 1 - padding) - 5 )
-      .attr("y2", (d) => {
+      .attr('x2', x.bandwidth() / (1 - padding) - 5)
+      .attr('y2', (d) => {
         return y(d.end);
       });
-}
+} // drawWaterfall
 
-d3.csv("data.csv", type, (error, data) => {
+const prepData = (data) => {
+  // create stacked remainder
+  const insertStackedRemainderBefore = (dataStage, newDataStage) => {
+    const index = data.findIndex((datum) => {
+      return datum.stage === dataStage;
+    }); // data.findIndex
+
+    return data.splice(index, 0, {
+      stage: newDataStage,
+      start: 0,
+      end: data[index].start,
+      class: 'positive',
+    }); // data.splice
+  } // insertStackedRemainder
+
+  // retrieve total value
+  let cumulative = data.reduce((p,c) => {
+    return p + c.value;
+  }, 0); // data.reduce
+
+  total = cumulative;
+
+  // Transform data (i.e., finding cumulative values and total) for easier charting
+  data.map((datum) => {
+    datum.start = cumulative;
+    cumulative -= datum.value;
+    datum.end = cumulative;
+    datum.class = 'negative';
+  }); // data.map
+
+  // insert stacked remainders where approriate
+  insertStackedRemainderBefore('New visitors', 'Total');
+  insertStackedRemainderBefore('Non leads', 'Return visitors');
+
+  drawWaterfall(data);
+} // prepData
+
+d3.csv('data.csv', type, (error, data) => {
   return prepData(data);
 });
