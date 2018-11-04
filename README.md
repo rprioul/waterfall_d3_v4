@@ -6,8 +6,10 @@ A recreation of the waterfall chart example in Wikipedia. This type of chart is 
 
 ## New features
 
+During my work at MYCS GmbH, I had to implement a reporting tool using, inter alia, waterfall charts. After agreement with MYCS GmbH, I've decided to share a tempalte of the javascript code used to generate those charts.
+
 I added an extra function called *insertStackedRemainderBefore(**barName**, **newBarName**)*, that inserts in the chart a stacked remainder called **newBarName** before the bar **barName**. This is a functionality often used in waterfall charts.
 
 ## Suggestions
 
-If you have any suggestions of possible improvements, feel free to reach out to me on github.
+If you have any suggestions of possible improvements, feel free to reach out to me.
